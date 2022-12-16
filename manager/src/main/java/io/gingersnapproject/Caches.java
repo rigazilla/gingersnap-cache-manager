@@ -22,7 +22,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
 import io.gingersnapproject.configuration.Configuration;
-import io.gingersnapproject.configuration.Rule;
+import io.gingersnapproject.configuration.EagerRule;
+import io.gingersnapproject.configuration.RuleManager;
 import io.gingersnapproject.database.DatabaseHandler;
 import io.gingersnapproject.database.model.ForeignKey;
 import io.gingersnapproject.database.model.Table;
@@ -44,7 +45,7 @@ public class Caches {
    @Inject
    DatabaseHandler databaseHandler;
    @Inject
-   Configuration configuration;
+   RuleManager ruleManager;
    @Inject
    IndexingHandler indexingHandler;
 
@@ -67,8 +68,8 @@ public class Caches {
    }
 
    public Uni<String> denormalizedPut(String name, String key, String value) {
-      Rule rule = configuration.rules().get(name);
-      if (rule.expandEntity()) {
+      EagerRule rule = ruleManager.eagerRules().get(name);
+      if (rule!=null && rule.expandEntity()) {
          Table table = databaseHandler.table(rule.connector().table());
          if (!table.foreignKeys().isEmpty()) {
             // We have foreign keys to resolve
@@ -167,9 +168,9 @@ public class Caches {
       return Uni.createFrom().item(Boolean.FALSE);
    }
 
-   private LoadingCache<String, Uni<String>> createLoadingCache(String rule) {
-      if (!configuration.rules().containsKey(rule)) {
-         throw new IllegalArgumentException("Rule " + rule + " not configured");
+   private LoadingCache<String, Uni<String>> createLoadingCache(String ruleName) {
+      if (!ruleManager.containsRuleByName(ruleName)) {
+         throw new IllegalArgumentException("Rule " + ruleName + " not configured");
       }
 
       LoadingCache<String, Uni<String>> cache = Caffeine.newBuilder()
@@ -190,14 +191,14 @@ public class Caches {
             .build(new CacheLoader<>() {
                @Override
                public Uni<String> load(String key) {
-                  Uni<String> dbUni = databaseHandler.select(rule, key)
+                  Uni<String> dbUni = databaseHandler.select(ruleManager.getEagerOrLazyRuleByName(ruleName), key)
                         // Make sure to use memoize, so that if multiple people subscribe to this it won't cause
                         // multiple DB lookups
                         .memoize().indefinitely();
                   // This will replace the pending Uni from the DB with a UniItem so we can properly size the entry
                   // Note due to how lazy subscribe works the entry won't be present in the map  yet
                   dbUni.subscribe()
-                        .with(result -> replace(rule, key, dbUni, result), t -> actualRemove(rule, key, dbUni));
+                        .with(result -> replace(ruleName, key, dbUni, result), t -> actualRemove(ruleName, key, dbUni));
                   return dbUni;
                }
 
@@ -213,7 +214,7 @@ public class Caches {
                   return response;
                }
             });
-      metrics.registerRulesMetrics(rule, cache);
+      metrics.registerRulesMetrics(ruleName, cache);
       return cache;
    }
 }

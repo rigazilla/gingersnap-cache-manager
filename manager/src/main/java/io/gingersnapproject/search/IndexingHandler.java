@@ -7,7 +7,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import io.gingersnapproject.configuration.Configuration;
-import io.gingersnapproject.configuration.Rule;
+import io.gingersnapproject.configuration.EagerRule;
 import io.smallrye.mutiny.Uni;
 
 @Singleton
@@ -20,7 +20,7 @@ public class IndexingHandler {
    Configuration configuration;
 
    public Uni<String> put(String indexName, String documentId, String jsonString) {
-      Rule rule = configuration.rules().get(indexName);
+      EagerRule rule = configuration.eagerRules().get(indexName);
       if (rule == null || !rule.queryEnabled()) {
          return Uni.createFrom().nullItem();
       }
@@ -28,7 +28,7 @@ public class IndexingHandler {
    }
 
    public Uni<String> putAll(String indexName, Map<String, String> documents) {
-      Rule rule = configuration.rules().get(indexName);
+      EagerRule rule = configuration.eagerRules().get(indexName);
       if (rule == null || !rule.queryEnabled()) {
          return Uni.createFrom().nullItem();
       }
@@ -36,7 +36,7 @@ public class IndexingHandler {
    }
 
    public Uni<String> remove(String indexName, String documentId) {
-      Rule rule = configuration.rules().get(indexName);
+      EagerRule rule = configuration.eagerRules().get(indexName);
       if (rule == null || !rule.queryEnabled()) {
          return Uni.createFrom().nullItem();
       }

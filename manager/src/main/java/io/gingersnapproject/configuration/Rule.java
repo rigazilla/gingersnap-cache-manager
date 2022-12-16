@@ -1,45 +1,36 @@
 package io.gingersnapproject.configuration;
 
+import io.smallrye.config.WithDefault;
 import org.infinispan.commons.dataconversion.internal.Json;
 
-import io.smallrye.config.WithDefault;
-
 public interface Rule {
+    @WithDefault("|")
+    String plainSeparator();
 
-      Connector connector();
+    String selectStatement();
 
-      @WithDefault("PLAIN")
-      KeyType keyType();
+    @WithDefault("TEXT")
+    KeyType keyType();
 
-      @WithDefault("|")
-      String plainSeparator();
+    enum KeyType {
+        TEXT {
+              @Override
+              public String[] toArguments(String strValue, String plainSeparator) {
+                    return strValue.split(plainSeparator);
+              }
+        },
+        JSON {
+              @Override
+              public String[] toArguments(String strValue, String plainSeparator) {
+                    return Json.read(strValue)
+                          .asJsonMap()
+                          .values()
+                          .stream()
+                          .map(Json::toString)
+                          .toArray(String[]::new);
+              }
+        };
+        public abstract String[] toArguments(String strValue, String plainSeparator);
+  }
 
-      String selectStatement();
-
-      @WithDefault("false")
-      boolean queryEnabled();
-
-      @WithDefault("true")
-      boolean expandEntity();
-
-      enum KeyType {
-            PLAIN {
-                  @Override
-                  public String[] toArguments(String strValue, String plainSeparator) {
-                        return strValue.split(plainSeparator);
-                  }
-            },
-            JSON {
-                  @Override
-                  public String[] toArguments(String strValue, String plainSeparator) {
-                        return Json.read(strValue)
-                              .asJsonMap()
-                              .values()
-                              .stream()
-                              .map(Json::toString)
-                              .toArray(String[]::new);
-                  }
-            };
-            public abstract String[] toArguments(String strValue, String plainSeparator);
-      }
 }

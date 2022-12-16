@@ -7,7 +7,7 @@ USER quarkus
 WORKDIR /code
 COPY --chown=quarkus:quarkus infinispan /code/infinispan
 COPY --chown=quarkus:quarkus manager /code/manager
-RUN ./mvnw package -Pnative -P${DB_VENDOR} -DskipTests
+RUN ./mvnw package -Pnative -Pno-submodule-update -P${DB_VENDOR} -DskipTests
 
 FROM quay.io/quarkus/quarkus-micro-image:1.0
 WORKDIR /work/

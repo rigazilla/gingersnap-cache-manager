@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static io.gingersnapproject.database.DatabaseHandler.prepareQuery;
 
@@ -103,4 +105,11 @@ public class MSSQLVendor implements Vendor {
 
         return Uni.combine().all().unis(pkUni, fksUni).combinedWith((pk, fks) -> new Table(table, pk, fks)).onFailure().recoverWithNull();
     }
+
+    @Override
+    public String whereClause(List<String> keys) {
+        return IntStream.range(0,keys.size())
+            .mapToObj(index -> keys.get(index)+ " = @p"+ index)
+            .collect(Collectors.joining(" AND "));
+    };
 }

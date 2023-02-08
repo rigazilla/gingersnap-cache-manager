@@ -6,12 +6,14 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,7 @@ import io.gingersnapproject.configuration.Connector;
 import io.gingersnapproject.configuration.EagerRule;
 import io.gingersnapproject.configuration.LazyRule;
 import io.gingersnapproject.configuration.RuleManager;
+import io.gingersnapproject.database.vendor.Vendor;
 import io.gingersnapproject.k8s.configuration.KubernetesConfiguration;
 import io.gingersnapproject.proto.api.config.v1alpha1.EagerCacheRuleSpec;
 import io.gingersnapproject.proto.api.config.v1alpha1.LazyCacheRuleSpec;
@@ -42,7 +45,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
  * gingersnap.k8s.lazy-config-map
  */
 @ApplicationScoped
-@RegisterForReflection(targets = {io.gingersnapproject.proto.api.config.v1alpha1.KeyFormat.class})
+@RegisterForReflection(targets = { io.gingersnapproject.proto.api.config.v1alpha1.KeyFormat.class })
 public class CacheRuleInformer {
    @Inject
    Instance<KubernetesClient> client;
@@ -53,11 +56,13 @@ public class CacheRuleInformer {
 
    private SharedIndexInformer<ConfigMap> lazyInformer;
    private SharedIndexInformer<ConfigMap> eagerInformer;
+   private static String dbKind;
 
    private static final Logger log = LoggerFactory.getLogger(CacheRuleInformer.class);
 
-   void startWatching(@Observes @Priority(100) StartupEvent ignore) {
+   void startWatching(@Observes StartupEvent ignore, Config config) {
       log.debug("startWatching(): begin");
+      dbKind = config.getValue("quarkus.datasource.db-kind", String.class).toLowerCase();
       if (client.isUnsatisfied()) {
          log.error("Kubernetes client not found, not watching config map");
          return;
@@ -281,13 +286,14 @@ public class CacheRuleInformer {
       public String selectStatement() {
          return lazyRule.getQuery();
       }
+
       @Override
       public String toString() {
          return "LazyCacheRuleSpecAdapter{" +
-                 "keyType=" + keyType() +
-                 ",plainSeparator=" + plainSeparator() +
-                 ",selectStatement=" + selectStatement() +
-                 '}';
+               "keyType=" + keyType() +
+               ",plainSeparator=" + plainSeparator() +
+               ",selectStatement=" + selectStatement() +
+               '}';
       }
    }
 
@@ -340,23 +346,7 @@ public class CacheRuleInformer {
       @Override
       public String selectStatement() {
          if (selectStmt == null) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("SELECT ")
-                  .append(
-                        eagerRule.getValue().getValueColumnsCount() > 0
-                              ? String.join(", ", eagerRule.getValue().getValueColumnsList())
-                              : "*")
-                  .append(" FROM ")
-                  .append(eagerRule.getTableName());
-            if (eagerRule.getKey().getKeyColumnsCount() > 0) {
-               sb.append(" WHERE ").append(
-                     eagerRule.getKey()
-                           .getKeyColumnsList()
-                           .stream()
-                           .map(s -> s + " = ?")
-                           .collect(Collectors.joining(" AND ")));
-            }
-            selectStmt = sb.toString();
+            buildStatement();
          }
          return selectStmt;
       }
@@ -370,17 +360,35 @@ public class CacheRuleInformer {
       public boolean expandEntity() {
          return true;
       }
-            @Override
+
+      @Override
       public String toString() {
          return "EagerCacheRuleSpecAdapter{" +
-                 "connector.table=" + (connector() == null ? null : connector().table()) +
-                 ",connector.schema=" + (connector() == null ? null : connector().schema()) +
-                 ",keyType=" + keyType() +
-                 ",plainSeparator=" + plainSeparator() +
-                 ",selectStatement=" + selectStatement() +
-                 ",queryEnabled=" + queryEnabled() +
-                 ",expandEntity=" + expandEntity() +
-                 '}';
+               "connector.table=" + (connector() == null ? null : connector().table()) +
+               ",connector.schema=" + (connector() == null ? null : connector().schema()) +
+               ",keyType=" + keyType() +
+               ",plainSeparator=" + plainSeparator() +
+               ",selectStatement=" + selectStatement() +
+               ",queryEnabled=" + queryEnabled() +
+               ",expandEntity=" + expandEntity() +
+               '}';
       }
+
+      private void buildStatement() {
+         StringBuilder sb = new StringBuilder();
+         sb.append("SELECT ")
+               .append(
+                     eagerRule.getValue().getValueColumnsCount() > 0
+                           ? String.join(", ", eagerRule.getValue().getValueColumnsList())
+                           : "*")
+               .append(" FROM ")
+               .append(eagerRule.getTableName());
+         if (eagerRule.getKey().getKeyColumnsCount() > 0) {
+            sb.append(" WHERE ").append(
+               Vendor.fromDbKind(dbKind).whereClause(eagerRule.getKey().getKeyColumnsList()));
+         }
+         selectStmt = sb.toString();
+      }
+
    }
 }

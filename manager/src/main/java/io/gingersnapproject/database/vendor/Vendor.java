@@ -2,6 +2,7 @@ package io.gingersnapproject.database.vendor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import io.gingersnapproject.database.model.PrimaryKey;
 import io.gingersnapproject.database.model.Table;
@@ -52,5 +53,9 @@ public interface Vendor {
          pkColumns.add(row.getString(1).toLowerCase());
       }
       return new PrimaryKey(pkName, pkColumns);
+   }
+
+   default String whereClause(List<String> keys) {
+      return keys.stream().map(s -> s + " = ?").collect(Collectors.joining(" AND "));
    }
 }

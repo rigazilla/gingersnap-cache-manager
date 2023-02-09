@@ -16,6 +16,7 @@ import org.infinispan.commons.dataconversion.internal.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.gingersnapproject.Caches;
 import io.gingersnapproject.configuration.Rule;
 import io.gingersnapproject.configuration.RuleEvents;
 import io.gingersnapproject.configuration.RuleManager;
@@ -41,6 +42,8 @@ public class DatabaseHandler {
    @Inject
    @ConfigProperty(name = "quarkus.datasource.db-kind")
    String dbKind;
+   @Inject
+   Caches maps;
    Vendor vendor;
 
    Map<String, Table> tables;
@@ -93,6 +96,7 @@ public class DatabaseHandler {
       log.debug("Received events RuleEvents.EagerRuleRemoved({})", ev.name());
       getTable2Rule().remove(ev.name());
       getTables().remove(ev.name());
+      maps.removeCache(ev.name());
    }
 
    public Uni<String> select(Rule ruleConfig, String key) {

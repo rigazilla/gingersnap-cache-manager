@@ -15,13 +15,14 @@ import javax.inject.Singleton;
 
 import org.infinispan.commons.dataconversion.internal.Json;
 import org.infinispan.util.KeyValuePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
-import io.gingersnapproject.configuration.Configuration;
 import io.gingersnapproject.configuration.EagerRule;
 import io.gingersnapproject.configuration.RuleManager;
 import io.gingersnapproject.database.DatabaseHandler;
@@ -36,6 +37,7 @@ import io.smallrye.mutiny.groups.UniJoin;
 
 @Singleton
 public class Caches {
+   private static final Logger log = LoggerFactory.getLogger(Caches.class);
 
    private static final Uni<Map<String, String>> EMPTY_MAP_UNI = Uni.createFrom().item(Collections.emptyMap());
    @Inject
@@ -174,6 +176,17 @@ public class Caches {
          return Uni.createFrom().item(Boolean.TRUE);
       }
       return Uni.createFrom().item(Boolean.FALSE);
+   }
+
+   public void removeCache(String ruleName) {
+      if (maps.containsKey(ruleName)) {
+         log.debug("Removing cache {}. Invalidating all entries", ruleName);
+         var cache = maps.remove(ruleName);
+         cache.invalidateAll();
+         cache.cleanUp();
+         return;
+      }
+      log.debug("Cache {} not existent, not removing");
    }
 
    private LoadingCache<String, Uni<String>> createLoadingCache(String ruleName) {

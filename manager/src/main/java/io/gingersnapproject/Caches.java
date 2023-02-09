@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -24,6 +25,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
 import io.gingersnapproject.configuration.EagerRule;
+import io.gingersnapproject.configuration.RuleEvents;
 import io.gingersnapproject.configuration.RuleManager;
 import io.gingersnapproject.database.DatabaseHandler;
 import io.gingersnapproject.database.model.ForeignKey;
@@ -178,10 +180,10 @@ public class Caches {
       return Uni.createFrom().item(Boolean.FALSE);
    }
 
-   public void removeCache(String ruleName) {
-      if (maps.containsKey(ruleName)) {
-         log.debug("Removing cache {}. Invalidating all entries", ruleName);
-         var cache = maps.remove(ruleName);
+   public void removeCache(@Observes RuleEvents.EagerRuleRemoved ev) {
+      if (maps.containsKey(ev.name())) {
+         log.debug("Removing cache {}. Invalidating all entries", ev.name());
+         var cache = maps.remove(ev.name());
          cache.invalidateAll();
          cache.cleanUp();
          return;

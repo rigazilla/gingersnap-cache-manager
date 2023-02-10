@@ -55,7 +55,5 @@ public interface Vendor {
       return new PrimaryKey(pkName, pkColumns);
    }
 
-   default String whereClause(List<String> keys) {
-      return keys.stream().map(s -> s + " = ?").collect(Collectors.joining(" AND "));
-   }
+   String whereClause(List<String> keys);
 }

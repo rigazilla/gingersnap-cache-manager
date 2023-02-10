@@ -5,6 +5,7 @@ import static io.gingersnapproject.database.DatabaseHandler.prepareQuery;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,5 +61,10 @@ public class MySQLVendor implements Vendor {
                      return foreignKeys;
                   });
       return Uni.combine().all().unis(pkUni, fksUni).combinedWith((pk, fks) -> new Table(table, pk, fks)).onFailure().recoverWithNull();
+   }
+
+   @Override
+   public String whereClause(List<String> keys) {
+      return keys.stream().map(s -> s + " = ?").collect(Collectors.joining(" AND "));
    }
 }

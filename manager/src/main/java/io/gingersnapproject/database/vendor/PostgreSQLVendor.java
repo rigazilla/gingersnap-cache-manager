@@ -4,6 +4,8 @@ import static io.gingersnapproject.database.DatabaseHandler.prepareQuery;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,4 +58,11 @@ public class PostgreSQLVendor implements Vendor {
                   });
       return Uni.combine().all().unis(pkUni, fksUni).combinedWith((pk, fks) -> new Table(table, pk, fks));
    }
+
+   @Override
+   public String whereClause(List<String> keys) {
+      return IntStream.range(0, keys.size())
+            .mapToObj(index -> keys.get(index) + " = $" + (index + 1))
+            .collect(Collectors.joining(" AND "));
+   };
 }

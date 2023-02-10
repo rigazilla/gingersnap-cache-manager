@@ -6,6 +6,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,5 +73,10 @@ public class OracleVendor implements Vendor {
 
    private static List<String> splitColumnList(String columns) {
       return Arrays.asList(columns.split(","));
+   }
+
+   @Override
+   public String whereClause(List<String> keys) {
+      return keys.stream().map(s -> s + " = ?").collect(Collectors.joining(" AND "));
    }
 }

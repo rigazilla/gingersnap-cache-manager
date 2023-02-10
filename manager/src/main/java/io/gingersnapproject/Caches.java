@@ -180,10 +180,18 @@ public class Caches {
       return Uni.createFrom().item(Boolean.FALSE);
    }
 
-   public void removeCache(@Observes RuleEvents.EagerRuleRemoved ev) {
-      if (maps.containsKey(ev.name())) {
-         log.debug("Removing cache {}. Invalidating all entries", ev.name());
-         var cache = maps.remove(ev.name());
+   public void onRemoveCache(@Observes RuleEvents.EagerRuleRemoved ev) {
+      removeCache(ev.name());
+   }
+
+   public void onRemoveCache(@Observes RuleEvents.LazyRuleRemoved ev) {
+      removeCache(ev.name());
+   }
+
+   private void removeCache(String ruleName) {
+      if (maps.containsKey(ruleName)) {
+         log.debug("Removing cache {}. Invalidating all entries", ruleName);
+         var cache = maps.remove(ruleName);
          cache.invalidateAll();
          cache.cleanUp();
          return;
